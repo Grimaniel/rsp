@@ -1,0 +1,975 @@
+service: sls-acumatica-backend
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  versionFunctions: false
+  stage: prd
+  region: us-east-1
+  environment:
+    SSM_NAME_DATABASE_CREDENTIALS: /sls-acumatica-backend/${self:provider.stage}/database/credentials
+    ENVIRONMENT: ${self:provider.stage}
+    DATABASE_ENVIRONMENT: ${self:custom.DATABASE_NAME}
+    RSP_REWARDS_LEVEL: RSP_REWARDS_LEVEL
+    RSP_REWARDS_CLIENT: RSP_REWARDS_CLIENT
+    RSP_REWARDS_POINT: RSP_REWARDS_POINT
+    RSP_REWARDS_POINT_DETAIL: RSP_REWARDS_POINT_DETAIL
+    RSP_REWARDS_CLIENT_LEVEL_RECORD: RSP_REWARDS_CLIENT_LEVEL_RECORD
+    REWARDS_SALES_ORDER_ACUMATICA: REWARDS_SALES_ORDER_ACUMATICA
+    REWARDS_NOTIFICATION_SALES_ORDER_ACUMATICA: REWARDS_NOTIFICATION_SALES_ORDER_ACUMATICA
+    RSP_OTP_CODE: OTP_CODE
+    RSP_COMPANY_TYPE: COMPANY_TYPE
+    RSP_CUSTOMER_TYPE: CUSTOMER_TYPE
+    RSP_BUSINESS_APPLICATION: BUSINESS_APPLICATION
+    RSP_CONTACT: CONTACT
+    RSP_DISSAPROVED_COMMENTS: DISAPPROVED_COMMENTS
+    RSP_PAYMENT: PAYMENTS_SALES_ORDER
+    REWARDS_TYPE_PAYMENT_METHOD: REWARDS_TYPE_PAYMENT_METHOD
+    REWARDS_PAYMENT_METHOD: REWARDS_PAYMENT_METHOD
+    REWARDS_PURCHASE: REWARDS_PURCHASE
+    REWARDS_PURCHASE_PAYMENT_METHOD: REWARDS_PURCHASE_PAYMENT_METHOD
+    DYNAMODB_TABLE_COLOR: ${self:custom.DYNAMODB_TABLE_COLOR}
+    BUCKET_RSP: ${self:custom.BUCKET_RSP}
+    SOURCE_EMAIL: alonsolipa@beta.pe
+    API_KEY_GOOGLE_MAPS: AIzaSyBP2u0uO4ti5BtYhkPUGXK6IiZHZ2wV5s8
+    STRIPE_KEY_DEV: sk_test_RXDHAHCX7sshmmfAhYhsgg1r00UDYiv7IF
+    FONTCONFIG_PATH: /var/task/fonts
+    STATUS_TO_REVIEW_CONTACT: 2
+    STATUS_PPROVED_CONTACT: 3
+    STATUS_DISAPPROVED_CONTACT: 4
+    STATUS_OTP_CODE_REGISTERED: 2
+    SENDER: RIVA-rsp-notification@rivafloors.com
+  apiGateway:
+    description: acumatica - api - ${self:provider.stage}
+    binaryMediaTypes:
+      - "*/*"
+  iam:
+    role:
+      name: acumatica-role-${self:provider.stage}
+      path: /acumatica-role-${self:provider.stage}/
+custom:
+  DATABASE_NAME: rsp_${self:provider.stage}
+  #tableSaleOrder: tblSaleOrder-${self:provider.stage}
+  BUCKET_RSP: rspgallery-${self:provider.stage}
+  DYNAMODB_TABLE_COLOR: tblColor-${self:provider.stage}
+  dev:
+    COGNITO_GROUP_ID: us-east-1_97c4Ah698
+  qa:
+    COGNITO_GROUP_ID: us-east-1_8i2bHH5EL
+  prd:
+    COGNITO_GROUP_ID: us-east-1_kEYihyvGs
+plugins:
+  #- serverless-iam-roles-per-function
+  #- serverless-plugin-include-dependencies
+  - serverless-offline
+  #- serverless-aws-documentation
+
+functions:
+  getColors:
+    handler: handler.getColors
+    name: getColors-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 10 # seconds
+    events:
+      - http:
+          path: colors
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    #iamRoleStatements:
+    #- Effect: "Allow"
+    #Action:
+    #- "dynamodb:Scan"
+    #Resource: !GetAtt TblColors.Arn
+  getSalesOrder:
+    handler: ./src/Application/Handler/SalesOrderHandler.getSalesOrder
+    name: getSalesOrder-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 5 # seconds
+    events:
+      - http:
+          path: salesorder/{ordernbr}
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getSalesOrders:
+    handler: ./src/Application/Handler/SalesOrderHandler.getSalesOrders
+    name: getSalesOrders-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: salesorder
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          #request:
+            #parameters:
+              #querystrings:
+                #customerid: true
+  getSalesOrdersGroupedCustomer:
+    handler: ./src/Application/Handler/SalesOrderHandler.getSalesOrdersGroupedCustomer
+    name: getSalesOrdersGroupedCustomer-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: salesorder/groupedcustomer
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  createSalesOrder:
+    handler: ./src/Application/Handler/SalesOrderHandler.createSalesOrder
+    name: createSalesOrder-${self:provider.stage}
+    memorySize: 512 # mb
+    timeout: 40 # seconds
+    events:
+      - http:
+          path: salesorder
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  createPaymentCode:
+    handler: ./src/Application/Handler/PaymentCodeHandler.createPaymentCode
+    name: createPaymentCode-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: paymentcode
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  declinedPaymentCode:
+    handler: ./src/Application/Handler/PaymentCodeHandler.declinedPaymentCode
+    name: declinedPaymentCode-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: paymentcode/declined
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  createSalesOrderOnTemporaryHold:
+    handler: handler.createSalesOrderOnTemporaryHold
+    name: createSalesOrderOnTemporaryHold-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: salesorder/ontemporaryhold
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    #iamRoleStatements:
+    #- Effect: "Allow"
+    #Action:
+    #- "dynamodb:PutItem"
+    #Resource: !GetAtt TblSaleOrder.Arn
+    #- Effect: "Allow"
+    #Action:
+    #- "s3:Put*"
+    #Resource: arn:aws:s3:::${self:custom.bucketName}/*
+  addFilesSalesOrderOnTemporaryHold:
+    handler: handler.addFilesSalesOrderOnTemporaryHold
+    name: addFilesSalesOrderOnTemporaryHold-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: salesorder/ontemporaryhold/file
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  releaseSalesOrderOnTemporaryHold:
+    handler: handler.releaseSalesOrderOnTemporaryHold
+    name: releaseSalesOrderOnTemporaryHold-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: salesorder/ontemporaryhold/release
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getCustomer:
+    handler: handler.getCustomer
+    name: getCustomer-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: customer/{customerid}
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getCustomers:
+    handler: handler.getCustomers
+    name: getCustomers-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: customer
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                salespersonid: true
+  getSalesPerson:
+    handler: handler.getSalesPerson
+    name: getSalesPerson-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: salesperson/{salespersonid}
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getCustomerLocations:
+    handler: handler.getCustomerLocations
+    name: getCustomerLocations-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: customerlocations
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                customerid: true
+                locationid: true
+  createCustomerLocations:
+    handler: handler.createCustomerLocations
+    name: createCustomerLocations-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: customerlocations
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getPaymentMethods:
+    handler: handler.getPaymentMethods
+    name: getPaymentMethods-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: paymentmethod
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  createPayment:
+    handler: handler.createPayment
+    name: createPayment-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: payment
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  createSalesOrderBalance:
+    handler: handler.createSalesOrderBalance
+    name: createSalesOrderBalance-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: salesorderbalance
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  #getEta:
+  #handler: handler.getEta
+  #name: getEta-${self:provider.stage}
+  #memorySize: 256 # mb
+  #timeout: 15 # seconds
+  #events:
+  #- http:
+  #path: eta
+  #method: GET
+  #authorizer:
+  #type: COGNITO_USER_POOLS
+  #authorizerId:
+  #Ref: ApiGatewayAuthorizer
+  #cors:
+  #origin: "*" # <-- Specify allowed origin
+  #headers: # <-- Specify allowed headers
+  #- Content-Type
+  #- X-Amz-Date
+  #- Authorization
+  #- X-Api-Key
+  #- X-Amz-Security-Token
+  #- X-Amz-User-Agent
+  #allowCredentials: false
+  #request:
+  #parameters:
+  #querystrings:
+  #origin: true
+  #destination: true
+  getInventoryInquiry:
+    handler: handler.getInventoryInquiry
+    name: getInventoryInquiry-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: inventoryinquiry
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                color: false
+  getInventoryInquiryGrouped:
+    handler: handler.getInventoryInquiryGrouped
+    name: getInventoryInquiryGrouped-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: inventoryinquiry/grouped
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                color: true
+  getMoldings:
+    handler: handler.getMoldings
+    name: getMoldings-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: molding
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                color: true
+                type: false
+  getInvoices:
+    handler: handler.getInvoices
+    name: getInvoices-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: invoice
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                customerid: true
+  getInvoice:
+    handler: handler.getInvoice
+    name: getInvoice-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: invoice/{referenceNbr}
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getCountries:
+    handler: handler.getCountries
+    name: getCountries-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: country
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getStates:
+    handler: handler.getStates
+    name: getStates-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: state
+          method: GET
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                countryid: true
+  getTaxZones:
+    handler: handler.getTaxZones
+    name: getTaxZones-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: taxzone
+          method: GET
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                state: true
+  # getTax:
+  #   handler: handler.getTax
+  #   name: getTax-${self:provider.stage}
+  #   memorySize: 256 # mb
+  #   timeout: 15 # seconds
+  #   events:
+  #     - http:
+  #         path: tax
+  #         method: GET
+  #         authorizer:
+  #           type: COGNITO_USER_POOLS
+  #           authorizerId:
+  #             Ref: ApiGatewayAuthorizer
+  #         cors:
+  #           origin: "*" # <-- Specify allowed origin
+  #           headers: # <-- Specify allowed headers
+  #             - Content-Type
+  #             - X-Amz-Date
+  #             - Authorization
+  #             - X-Api-Key
+  #             - X-Amz-Security-Token
+  #             - X-Amz-User-Agent
+  #           allowCredentials: false
+  #         request:
+  #           parameters:
+  #             querystrings:
+  #               taxzoneid: true
+  # getCustomerBusinessApp:
+  #   handler: handler.getCustomerBusinessApp
+  #   name: getCustomerBusinessApp-${self:provider.stage}
+  #   memorySize: 256 # mb
+  #   timeout: 15 # seconds
+  #   events:
+  #     - http:
+  #         path: customer/businessapp/{id}
+  #         method: GET
+  #         authorizer:
+  #           type: COGNITO_USER_POOLS
+  #           authorizerId:
+  #             Ref: ApiGatewayAuthorizer
+  #         cors:
+  #           origin: "*" # <-- Specify allowed origin
+  #           headers: # <-- Specify allowed headers
+  #             - Content-Type
+  #             - X-Amz-Date
+  #             - Authorization
+  #             - X-Api-Key
+  #             - X-Amz-Security-Token
+  #             - X-Amz-User-Agent
+  #           allowCredentials: false
+  createCustomerBusinessApp:
+    handler: handler.createCustomerBusinessApp
+    name: createCustomerBusinessApp-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: customer/businessapp
+          method: POST
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  approveContactRequest:
+    handler: handler.approveContactRequest
+    name: approveContactRequest-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: contact/approve
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  disapproveContactRequest:
+    handler: handler.disapproveContactRequest
+    name: disapproveContactRequest-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: contact/disapprove
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getDashboardSummary:
+    handler: ./src/Application/Handler/DashboardHandler.getCustomerDashboardSummary
+    name: getDashboardSummary-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 30 # seconds
+    events:
+      - http:
+          path: dashboard
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getSalesPersonDashboardSummary:
+    handler: ./src/Application/Handler/DashboardHandler.getSalesPersonDashboardSummary
+    name: getSalesPersonDashboardSummary-${self:provider.stage}
+    memorySize: 256 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: dashboard/salesperson
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  getShipments:
+    handler: handler.getShipments
+    name: getShipments-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 10 # seconds
+    events:
+      - http:
+          path: shipment
+          method: GET
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              querystrings:
+                customerid: true
+  createQuote:
+    handler: handler.createQuote
+    name: createQuote-${self:provider.stage}
+    memorySize: 128 # mb
+    timeout: 15 # seconds
+    events:
+      - http:
+          path: quote
+          method: POST
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+          cors:
+            origin: "*" # <-- Specify allowed origin
+            headers: # <-- Specify allowed headers
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+  cancelExpiredSalesOrders:
+    handler: handler.cancelExpiredSalesOrders
+    name: cancelExpiredSalesOrders-${self:provider.stage}
+  processRewardsPoints:
+    handler: handler.processRewardsPoints
+    name: processRewardsPoints-${self:provider.stage}
+  updateRewardsLevelInAcumatica:
+    handler: handler.updateRewardsLevelInAcumatica
+    name: updateRewardsLevelInAcumatica-${self:provider.stage}
+  notifySalesOrderDeadlineOnTemporaryHold:
+    handler: handler.notifySalesOrderDeadlineOnTemporaryHold
+    name: notifySalesOrderDeadlineOnTemporaryHold-${self:provider.stage}
+
+resources:
+  Resources:
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        AuthorizerResultTtlInSeconds: 10
+        IdentitySource: method.request.header.Authorization
+        Name: MyCognitoAuthorizer-${self:provider.stage}
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - arn:aws:cognito-idp:us-east-1:241125307495:userpool/${self:custom.${self:provider.stage}.COGNITO_GROUP_ID}

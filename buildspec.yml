@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+    commands:
+      - npm install --silent --no-progress -g npm
+      - npm install --silent --no-progress -g serverless@3.24.1
+  pre_build:
+    commands:
+      - npm install --silent --no-progress
+  build:
+    commands:
+      - serverless deploy
+
+  post_build:
+    commands:
+      - echo "run tests here"
